@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.io.files.Path
 import org.koin.core.Koin
+import org.koin.core.module.Module
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.uuid.Uuid
@@ -239,6 +240,13 @@ interface WebServices {
     suspend fun checkForFirmwareUpdate(watch: WatchInfo, force: Boolean): FirmwareUpdateCheckResult
     fun uploadMemfaultChunk(chunk: ByteArray, watchInfo: WatchInfo)
     fun uploadAnalyticsHeartbeat(payload: ByteArray, watchInfo: WatchInfo)
+
+    /**
+     * A timeline token for an app that isn't in the user's locker (e.g. sideloaded) —
+     * Pebble.getTimelineToken()'s fallback path when there's no locker user_token. Default is null;
+     * a Rebble-backed implementation queries the sandbox-token endpoint.
+     */
+    suspend fun getSandboxTimelineToken(uuid: Uuid): String? = null
 }
 
 interface TokenProvider {
@@ -512,8 +520,10 @@ class LibPebble3(
             proxyTokenProvider: StateFlow<String?>,
             transcriptionProvider: TranscriptionProvider,
             injectedPKJSHttpInterceptors: InjectedPKJSHttpInterceptors = InjectedPKJSHttpInterceptors(emptyList()),
+            /** Platform bindings replacing the defaults; see [initKoin]. */
+            platformOverrides: List<Module> = emptyList(),
         ): LibPebble {
-            koin = initKoin(defaultConfig, webServices, appContext, tokenProvider, proxyTokenProvider, transcriptionProvider, injectedPKJSHttpInterceptors)
+            koin = initKoin(defaultConfig, webServices, appContext, tokenProvider, proxyTokenProvider, transcriptionProvider, injectedPKJSHttpInterceptors, platformOverrides)
             val libPebble = koin.get<LibPebble>()
             return libPebble
         }
